@@ -26,7 +26,6 @@ type File struct {
 func (f *File) Parse() error {
 	info, err := f.Stat()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
 		return err
 	}
 
