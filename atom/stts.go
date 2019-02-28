@@ -19,6 +19,7 @@ func (b *SttsBox) parse() error {
 	b.Flags = binary.BigEndian.Uint32(data[0:4])
 
 	count := binary.BigEndian.Uint32(data[4:8])
+	b.EntryCount = count
 	b.SampleCounts = make([]uint32, count)
 	b.SampleDeltas = make([]uint32, count)
 
