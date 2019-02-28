@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"github.com/DHowett/ranger"
 )
 
 const (
@@ -11,9 +12,50 @@ const (
 	BoxHeaderSize = int64(8)
 )
 
+type Reader struct {
+	File interface{}
+}
+
+func (sr *Reader) Close() error {
+	if _, ok := sr.File.(*ranger.Reader); ok {
+		return nil
+	}
+
+	return sr.File.(*os.File).Close()
+}
+
+func (sr *Reader) Read(p []byte) (n int, err error) {
+	if r, ok := sr.File.(*ranger.Reader); ok {
+		return r.Read(p)
+	}
+
+	return sr.File.(*os.File).Read(p)
+}
+
+func (sr *Reader) ReadAt(p []byte, pos int64) (n int, err error) {
+	if r, ok := sr.File.(*ranger.Reader); ok {
+		return r.ReadAt(p, pos)
+	}
+
+	return sr.File.(*os.File).ReadAt(p, pos)
+}
+
+func (sr *Reader) GetSize() (s int64, err error) {
+	if r, ok := sr.File.(*ranger.Reader); ok {
+		return r.Length()
+	}
+
+	info, err := sr.File.(*os.File).Stat()
+	if err != nil {
+		return
+	}
+
+	return info.Size(), nil
+}
+
 // File defines a file structure.
 type File struct {
-	*os.File
+	*Reader
 	Ftyp *FtypBox
 	Moov *MoovBox
 	Mdat *MdatBox
@@ -23,14 +65,10 @@ type File struct {
 }
 
 // Parse parses an MP4 file for atom boxes.
-func (f *File) Parse() error {
-	info, err := f.Stat()
-	if err != nil {
-		return err
+func (f *File) Parse() (err error) {
+	if f.Size, err = f.GetSize(); err != nil {
+		return
 	}
-
-	// fmt.Printf("Filesize: %v \n", info.Size())
-	f.Size = info.Size()
 
 	boxes := readBoxes(f, int64(0), f.Size)
 	for _, box := range boxes {
@@ -50,7 +88,7 @@ func (f *File) Parse() error {
 			f.IsFragmented = f.Moov.IsFragmented
 		}
 	}
-	return nil
+	return
 }
 
 // ReadBoxAt reads a box from an offset.
